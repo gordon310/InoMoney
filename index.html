@@ -530,7 +530,7 @@
         table.className = 'holdings-table';
         const head = document.createElement('thead');
         const headRow = document.createElement('tr');
-        ['Ticker', '证券', '申报市值', '持股比例'].forEach(label => {
+        ['Ticker', '证券', '申报市值', '组合占比'].forEach(label => {
             const cell = document.createElement('th');
             cell.innerText = label;
             headRow.appendChild(cell);
