@@ -509,7 +509,7 @@
                 throw new Error(payload.error || `SEC 持仓接口返回 ${response.status}`);
             }
 
-            holdingsMeta.innerText = `报告期 ${payload.reportDate || '—'} · 提交日期 ${payload.filingDate || '—'} · CIK ${payload.cik}`;
+            holdingsMeta.innerText = `申报主体 ${payload.filerName || '—'} · 报告期 ${payload.reportDate || '—'} · 提交日期 ${payload.filingDate || '—'} · CIK ${payload.cik}`;
             renderHoldings(payload.holdings || []);
         } catch (error) {
             holdingsMeta.innerText = 'SEC EDGAR';

@@ -124,6 +124,7 @@ async function loadInstitution(institution, secUserAgent) {
 
   return {
     ...institution,
+    filerName: submissions.name || institution.name,
     filingDate: recent.filingDate[filingIndex],
     reportDate: recent.reportDate[filingIndex],
     accession,
@@ -166,7 +167,7 @@ async function handleManagerHoldings(url, env, ctx) {
     return jsonResponse({ error: 'rank must be an integer from 1 to 100' }, 400);
   }
 
-  const cacheKey = new Request(url.origin + `/manager-holdings?rank=${rank}&v=top100-v2`);
+  const cacheKey = new Request(url.origin + `/manager-holdings?rank=${rank}&v=top100-v3`);
   const cached = await caches.default.match(cacheKey);
   if (cached) return withCors(cached);
 
@@ -190,6 +191,7 @@ async function handleManagerHoldings(url, env, ctx) {
           discovery: 'SEC EDGAR search index',
           manager,
           cik,
+          filerName: institution.filerName,
           filingDate: institution.filingDate,
           reportDate: institution.reportDate,
           accession: institution.accession,
@@ -232,7 +234,7 @@ async function findSecCandidates(manager, secUserAgent) {
       const source = hit._source || {};
       const displayName = Array.isArray(source.display_names) ? source.display_names.join(' ') : '';
       const score = nameMatchScore(manager.nameEn, displayName);
-      if (score < 0.25 || !Array.isArray(source.ciks)) continue;
+      if (score < 0.6 || !Array.isArray(source.ciks)) continue;
       for (const cik of source.ciks) {
         const normalizedCik = String(cik).padStart(10, '0');
         const current = candidates.get(normalizedCik);
