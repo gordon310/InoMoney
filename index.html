@@ -180,35 +180,31 @@
         .directory-heading p { color: var(--text-light); font-size: 12px; margin-top: 3px; }
         .directory-total { color: var(--text-light); font-size: 11px; text-align: right; white-space: nowrap; }
         .directory-scroll { overflow-x: auto; border: 1px solid var(--border-color); border-radius: 10px; }
-        .directory-table { width: 100%; min-width: 680px; border-collapse: collapse; font-size: 12px; }
+        .directory-table { width: 100%; min-width: 560px; border-collapse: collapse; font-size: 12px; }
         .directory-table th,
-        .directory-table td { padding: 10px 12px; border-bottom: 1px solid var(--border-color); text-align: left; vertical-align: top; }
+        .directory-table td { padding: 7px 10px; border-bottom: 1px solid var(--border-color); text-align: left; vertical-align: top; }
         .directory-table th { color: var(--text-light); font-size: 11px; font-weight: 500; background: #fafafa; white-space: nowrap; }
         .directory-table tr:last-child td { border-bottom: 0; }
         .directory-rank { color: var(--text-light); width: 46px; }
         .directory-name-zh { display: block; font-weight: 600; color: var(--text-main); }
-        .directory-name-en { display: block; color: var(--text-light); font-size: 11px; margin-top: 2px; }
-        .directory-region { color: #666; white-space: nowrap; }
-        .directory-aum { white-space: nowrap; font-variant-numeric: tabular-nums; }
-        .data-badge { display: inline-block; padding: 3px 7px; border-radius: 4px; font-size: 10px; white-space: nowrap; }
-        .data-badge.available { color: var(--accent-green); background: rgba(67, 160, 71, 0.1); }
-        .data-badge.unavailable { color: var(--text-light); background: #f0f0f0; }
-        .directory-source { color: var(--text-light); font-size: 11px; margin-top: 10px; }
-        .directory-source a { color: inherit; }
-        .holding-button {
+        .directory-name-en { display: block; color: var(--text-light); font-size: 10px; margin-top: 1px; }
+        .directory-name-button {
             display: block;
-            margin-top: 8px;
-            border: 1px solid var(--border-color);
-            border-radius: 5px;
-            padding: 4px 8px;
-            color: var(--text-main);
-            background: white;
+            width: 100%;
+            padding: 0;
+            border: 0;
+            color: inherit;
+            background: transparent;
             font: inherit;
-            font-size: 11px;
+            text-align: left;
             cursor: pointer;
         }
-        .holding-button:hover { border-color: #bbb; background: #fafafa; }
-        .holding-button:disabled { color: var(--text-light); cursor: wait; }
+        .directory-name-button:hover .directory-name-zh { text-decoration: underline; }
+        .directory-name-button:focus-visible { outline: 2px solid var(--text-main); outline-offset: 2px; border-radius: 2px; }
+        .directory-region { color: #666; white-space: nowrap; }
+        .directory-aum { white-space: nowrap; font-variant-numeric: tabular-nums; }
+        .directory-source { color: var(--text-light); font-size: 11px; margin-top: 10px; }
+        .directory-source a { color: inherit; }
         .holdings-detail {
             margin-top: 18px;
             padding: 16px;
@@ -302,7 +298,7 @@
             <div class="directory-heading">
                 <div>
                     <h3 id="top100Title">全球资产管理机构 Top 100</h3>
-                    <p>中英文名称、所在地区与公开管理规模</p>
+                    <p>点击机构名称查看 SEC EDGAR 13F 持仓比例</p>
                 </div>
                 <div class="directory-total" id="top100Total">正在读取榜单...</div>
             </div>
@@ -430,7 +426,7 @@
         table.className = 'directory-table';
         const thead = document.createElement('thead');
         const headerRow = document.createElement('tr');
-        ['排名', '机构（中文 / English）', '国家 / 地区', '公开管理规模', '数据状态'].forEach(label => {
+        ['排名', '机构（中文 / English）', '国家 / 地区', '公开管理规模'].forEach(label => {
             const cell = document.createElement('th');
             cell.innerText = label;
             headerRow.appendChild(cell);
@@ -448,13 +444,19 @@
             row.appendChild(rank);
 
             const name = document.createElement('td');
+            const nameButton = document.createElement('button');
+            nameButton.type = 'button';
+            nameButton.className = 'directory-name-button';
             const nameZh = document.createElement('span');
             nameZh.className = 'directory-name-zh';
             nameZh.innerText = manager.nameZh || '中文名称待补充';
             const nameEn = document.createElement('span');
             nameEn.className = 'directory-name-en';
             nameEn.innerText = manager.nameEn || '';
-            name.append(nameZh, nameEn);
+            nameButton.append(nameZh, nameEn);
+            nameButton.setAttribute('aria-label', `查看 ${manager.nameZh || manager.nameEn || '机构'} 的 SEC 13F 持仓比例`);
+            nameButton.onclick = () => loadManagerHoldings(manager, nameButton);
+            name.appendChild(nameButton);
             row.appendChild(name);
 
             const region = document.createElement('td');
@@ -466,23 +468,6 @@
             aum.className = 'directory-aum';
             aum.innerText = manager.aumDisplay || '未公开';
             row.appendChild(aum);
-
-            const status = document.createElement('td');
-            const badge = document.createElement('span');
-            badge.className = `data-badge ${manager.aumDisplay ? 'available' : 'unavailable'}`;
-            badge.innerText = manager.aumDisplay ? 'AUM 已公开' : 'AUM 未公开';
-            status.appendChild(badge);
-            const note = document.createElement('div');
-            note.className = 'directory-name-en';
-            note.innerText = '点击查询 SEC 13F';
-            status.appendChild(note);
-            const button = document.createElement('button');
-            button.type = 'button';
-            button.className = 'holding-button';
-            button.innerText = '查看持仓比例';
-            button.onclick = () => loadManagerHoldings(manager, button);
-            status.appendChild(button);
-            row.appendChild(status);
 
             tbody.appendChild(row);
         });
