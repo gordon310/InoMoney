@@ -422,7 +422,7 @@
         const total = document.getElementById('top100Total');
         total.innerText = `${meta && meta.totalCount ? meta.totalCount : top100.length} 家 · ${meta && meta.totalAssetsDisplay ? meta.totalAssetsDisplay : 'AUM 汇总未提供'}`;
         const source = document.getElementById('top100Source');
-        source.innerText = `排名来源：${meta && meta.source ? meta.source : '公开榜单'}；快照日期：${formatDate(meta && meta.asOf)}。AUM 为 USD，未显示数值表示原榜单未公开；持仓数据仍以 SEC EDGAR 13F 为准。`;
+        source.innerText = `排名来源：${meta && meta.source ? meta.source : '公开榜单'}；快照日期：${formatDate(meta && meta.asOf)}。AUM 为 USD，未显示数值表示原榜单未公开；中文名称为常用译名/音译，持仓数据仍以 SEC EDGAR 13F 为准。正式公开前请确认榜单转载许可。`;
         if (meta && meta.sourceUrl) {
             const link = document.createElement('a');
             link.href = meta.sourceUrl;
