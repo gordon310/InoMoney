@@ -61,7 +61,7 @@ export default {
     }
 
     const cache = caches.default;
-    const cacheKey = new Request(url.origin + '/holdings');
+    const cacheKey = new Request(url.origin + '/holdings?v=top100-v1');
     const cached = await cache.match(cacheKey);
     if (cached) {
       return withCors(cached);
