@@ -1,3 +1,5 @@
+import { TOP100_MANAGERS, TOP100_META } from './top100.js';
+
 const DEFAULT_SEC_USER_AGENT = 'InoMoney/1.0';
 const CACHE_TTL_SECONDS = 3600;
 
@@ -75,6 +77,8 @@ export default {
           source: 'SEC EDGAR',
           generatedAt: new Date().toISOString(),
           institutions: institutions.filter(Boolean),
+          top100: TOP100_MANAGERS,
+          top100Meta: TOP100_META,
         },
         200,
         { 'Cache-Control': `public, max-age=${CACHE_TTL_SECONDS}` }

@@ -163,6 +163,44 @@
         .status { color: var(--text-light); font-size: 13px; padding: 20px 0; }
         .error { color: var(--accent-red); background: rgba(229, 57, 53, 0.08); border-radius: 8px; padding: 12px; }
 
+        /* 全球资产管理机构目录 */
+        .directory-section {
+            margin-top: 34px;
+            padding-top: 20px;
+            border-top: 2px solid var(--text-main);
+        }
+        .directory-heading {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 16px;
+            margin-bottom: 12px;
+        }
+        .directory-heading h3 { font-size: 15px; }
+        .directory-heading p { color: var(--text-light); font-size: 12px; margin-top: 3px; }
+        .directory-total { color: var(--text-light); font-size: 11px; text-align: right; white-space: nowrap; }
+        .directory-scroll { overflow-x: auto; border: 1px solid var(--border-color); border-radius: 10px; }
+        .directory-table { width: 100%; min-width: 680px; border-collapse: collapse; font-size: 12px; }
+        .directory-table th,
+        .directory-table td { padding: 10px 12px; border-bottom: 1px solid var(--border-color); text-align: left; vertical-align: top; }
+        .directory-table th { color: var(--text-light); font-size: 11px; font-weight: 500; background: #fafafa; white-space: nowrap; }
+        .directory-table tr:last-child td { border-bottom: 0; }
+        .directory-rank { color: var(--text-light); width: 46px; }
+        .directory-name-zh { display: block; font-weight: 600; color: var(--text-main); }
+        .directory-name-en { display: block; color: var(--text-light); font-size: 11px; margin-top: 2px; }
+        .directory-region { color: #666; white-space: nowrap; }
+        .directory-aum { white-space: nowrap; font-variant-numeric: tabular-nums; }
+        .data-badge { display: inline-block; padding: 3px 7px; border-radius: 4px; font-size: 10px; white-space: nowrap; }
+        .data-badge.available { color: var(--accent-green); background: rgba(67, 160, 71, 0.1); }
+        .data-badge.unavailable { color: var(--text-light); background: #f0f0f0; }
+        .directory-source { color: var(--text-light); font-size: 11px; margin-top: 10px; }
+        .directory-source a { color: inherit; }
+
+        @media (max-width: 639px) {
+            .directory-heading { display: block; }
+            .directory-total { margin-top: 6px; text-align: left; }
+        }
+
     </style>
 </head>
 <body>
@@ -199,16 +237,33 @@
                 <span class="tag">季度持仓</span>
             </div>
         </div>
+
+        <!-- 全球资产管理机构 Top 100 -->
+        <section class="directory-section" aria-labelledby="top100Title">
+            <div class="directory-heading">
+                <div>
+                    <h3 id="top100Title">全球资产管理机构 Top 100</h3>
+                    <p>中英文名称、所在地区与公开管理规模</p>
+                </div>
+                <div class="directory-total" id="top100Total">正在读取榜单...</div>
+            </div>
+            <div class="directory-scroll" id="top100List">
+                <div class="status">正在读取全球资产管理机构榜单...</div>
+            </div>
+            <p class="directory-source" id="top100Source"></p>
+        </section>
     </div>
 
 <script>
     const API_ENDPOINT = new URLSearchParams(window.location.search).get('api')
         || 'https://inomoney-sec-api.inomoney.workers.dev';
     let data = [];
+    let top100 = [];
 
     let currentIdx = 0;
     const scrollContainer = document.getElementById('instScroll');
     const grid = document.getElementById('cardGrid');
+    const top100List = document.getElementById('top100List');
 
     async function loadData() {
         grid.innerHTML = '<div class="status">正在读取 SEC EDGAR 最新 13F 数据...</div>';
@@ -225,15 +280,24 @@
 
             const payload = await response.json();
             data = payload.institutions || [];
+            top100 = Array.isArray(payload.top100) ? payload.top100 : [];
 
-            if (!data.length) {
-                throw new Error('SEC 数据接口没有返回机构持仓。');
+            if (!data.length && !top100.length) {
+                throw new Error('数据接口没有返回机构或资产管理榜单。');
             }
 
-            renderInstitutionSelector();
-            renderView();
+            if (data.length) {
+                renderInstitutionSelector();
+                renderView();
+            } else {
+                grid.innerHTML = '<div class="status">当前仅返回资产管理机构目录，SEC 持仓尚未配置。</div>';
+                document.getElementById('mgrName').innerText = '目录模式';
+                document.getElementById('mgrStyle').innerText = 'Top 100';
+            }
+            renderTop100Directory(payload.top100Meta);
         } catch (error) {
             grid.innerHTML = `<div class="status error">${error.message}</div>`;
+            top100List.innerHTML = `<div class="status error">${error.message}</div>`;
             document.getElementById('mgrName').innerText = '未连接';
             document.getElementById('mgrStyle').innerText = 'SEC EDGAR';
         }
@@ -289,6 +353,91 @@
             `;
             grid.appendChild(card);
         });
+    }
+
+    function renderTop100Directory(meta) {
+        top100List.innerHTML = '';
+        if (!top100.length) {
+            top100List.innerHTML = '<div class="status">暂无资产管理机构榜单数据。</div>';
+            return;
+        }
+
+        const table = document.createElement('table');
+        table.className = 'directory-table';
+        const thead = document.createElement('thead');
+        const headerRow = document.createElement('tr');
+        ['排名', '机构（中文 / English）', '国家 / 地区', '公开管理规模', '数据状态'].forEach(label => {
+            const cell = document.createElement('th');
+            cell.innerText = label;
+            headerRow.appendChild(cell);
+        });
+        thead.appendChild(headerRow);
+        table.appendChild(thead);
+
+        const tbody = document.createElement('tbody');
+        top100.forEach(manager => {
+            const row = document.createElement('tr');
+
+            const rank = document.createElement('td');
+            rank.className = 'directory-rank';
+            rank.innerText = `#${manager.rank}`;
+            row.appendChild(rank);
+
+            const name = document.createElement('td');
+            const nameZh = document.createElement('span');
+            nameZh.className = 'directory-name-zh';
+            nameZh.innerText = manager.nameZh || '中文名称待补充';
+            const nameEn = document.createElement('span');
+            nameEn.className = 'directory-name-en';
+            nameEn.innerText = manager.nameEn || '';
+            name.append(nameZh, nameEn);
+            row.appendChild(name);
+
+            const region = document.createElement('td');
+            region.className = 'directory-region';
+            region.innerText = `${manager.country || '—'} / ${manager.region || '—'}`;
+            row.appendChild(region);
+
+            const aum = document.createElement('td');
+            aum.className = 'directory-aum';
+            aum.innerText = manager.aumDisplay || '未公开';
+            row.appendChild(aum);
+
+            const status = document.createElement('td');
+            const badge = document.createElement('span');
+            badge.className = `data-badge ${manager.aumDisplay ? 'available' : 'unavailable'}`;
+            badge.innerText = manager.aumDisplay ? 'AUM 已公开' : 'AUM 未公开';
+            status.appendChild(badge);
+            const note = document.createElement('div');
+            note.className = 'directory-name-en';
+            note.innerText = 'SEC 持仓待映射';
+            status.appendChild(note);
+            row.appendChild(status);
+
+            tbody.appendChild(row);
+        });
+        table.appendChild(tbody);
+        top100List.appendChild(table);
+
+        const total = document.getElementById('top100Total');
+        total.innerText = `${meta && meta.totalCount ? meta.totalCount : top100.length} 家 · ${meta && meta.totalAssetsDisplay ? meta.totalAssetsDisplay : 'AUM 汇总未提供'}`;
+        const source = document.getElementById('top100Source');
+        source.innerText = `排名来源：${meta && meta.source ? meta.source : '公开榜单'}；快照日期：${formatDate(meta && meta.asOf)}。AUM 为 USD，未显示数值表示原榜单未公开；持仓数据仍以 SEC EDGAR 13F 为准。`;
+        if (meta && meta.sourceUrl) {
+            const link = document.createElement('a');
+            link.href = meta.sourceUrl;
+            link.target = '_blank';
+            link.rel = 'noreferrer';
+            link.innerText = '查看来源';
+            source.append(' ', link);
+        }
+    }
+
+    function formatDate(value) {
+        if (!value) return '—';
+        const date = new Date(value);
+        if (Number.isNaN(date.getTime())) return value;
+        return date.toLocaleDateString('zh-CN', { year: 'numeric', month: '2-digit', day: '2-digit' });
     }
 
     // 初始化
