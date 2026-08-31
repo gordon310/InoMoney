@@ -160,6 +160,8 @@
         .consensus h3 { font-size: 14px; margin-bottom: 12px; }
         .tags { display: flex; flex-wrap: wrap; gap: 8px; }
         .tag { font-size: 12px; padding: 6px 12px; background: #f0f0f0; border-radius: 4px; font-weight: 500;}
+        .status { color: var(--text-light); font-size: 13px; padding: 20px 0; }
+        .error { color: var(--accent-red); background: rgba(229, 57, 53, 0.08); border-radius: 8px; padding: 12px; }
 
     </style>
 </head>
@@ -168,7 +170,7 @@
     <header>
         <!-- 页面顶部 Logo -->
         <div class="logo">INO赚大钱</div>
-        <div class="date-tag">2023 Q4</div>
+        <div class="date-tag" id="filingDate">SEC EDGAR</div>
     </header>
 
     <!-- 横向滚动的机构选择器 -->
@@ -192,61 +194,61 @@
         <div class="consensus">
             <h3>🔥 聪明钱共识</h3>
             <div class="tags">
-                <span class="tag">NVDA +15%</span>
-                <span class="tag">MSFT +8%</span>
-                <span class="tag">AMZN +5%</span>
-                <span class="tag">LLY +12%</span>
-                <span class="tag">META +20%</span>
+                <span class="tag">SEC 13F</span>
+                <span class="tag">最新已披露</span>
+                <span class="tag">季度持仓</span>
             </div>
         </div>
     </div>
 
 <script>
-    // 模拟数据
-    const data = [
-        {
-            id: 'brk', name: 'Berkshire', mgr: 'Warren Buffett', style: 'Value',
-            holdings: [
-                { t: 'AAPL', n: 'Apple Inc.', v: '174.0B', p: '49.2%', c: -10.5 },
-                { t: 'BAC', n: 'Bank of America', v: '32.5B', p: '9.2%', c: 0 },
-                { t: 'AXP', n: 'American Express', v: '24.8B', p: '7.0%', c: 0 },
-                { t: 'KO', n: 'Coca-Cola Co', v: '23.5B', p: '6.6%', c: 0 },
-                { t: 'CVX', n: 'Chevron Corp', v: '19.2B', p: '5.4%', c: 2.1 },
-                { t: 'OXY', n: 'Occidental Petroleum', v: '11.8B', p: '3.3%', c: 5.5 }
-            ]
-        },
-        {
-            id: 'ark', name: 'ARK Invest', mgr: 'Cathie Wood', style: 'Disruptive',
-            holdings: [
-                { t: 'TSLA', n: 'Tesla Inc', v: '1.2B', p: '14.1%', c: 5.5 },
-                { t: 'COIN', n: 'Coinbase Global', v: '950M', p: '11.2%', c: 12.0 },
-                { t: 'ROKU', n: 'Roku Inc', v: '600M', p: '7.1%', c: -2.3 },
-                { t: 'SHOP', n: 'Shopify Inc', v: '550M', p: '6.5%', c: 1.2 },
-                { t: 'ZM', n: 'Zoom Video', v: '400M', p: '4.7%', c: -5.0 }
-            ]
-        },
-        {
-            id: 'ps', name: 'Pershing Sq', mgr: 'Bill Ackman', style: 'Activist',
-            holdings: [
-                { t: 'HLT', n: 'Hilton Worldwide', v: '4.5B', p: '20.5%', c: 0 },
-                { t: 'LOW', n: "Lowe's Companies", v: '3.2B', p: '14.5%', c: 1.5 },
-                { t: 'SBUX', n: 'Starbucks Corp', v: '2.8B', p: '12.7%', c: -3.0 },
-                { t: 'CMG', n: 'Chipotle Mexican', v: '2.1B', p: '9.5%', c: 4.2 }
-            ]
-        }
-    ];
+    const API_ENDPOINT = new URLSearchParams(window.location.search).get('api')
+        || 'https://inomoney-sec-api.YOUR_WORKERS_SUBDOMAIN.workers.dev';
+    let data = [];
 
     let currentIdx = 0;
-
-    // 渲染机构选择器
     const scrollContainer = document.getElementById('instScroll');
-    data.forEach((inst, idx) => {
-        const chip = document.createElement('div');
-        chip.className = `inst-chip ${idx === 0 ? 'active' : ''}`;
-        chip.innerText = inst.name;
-        chip.onclick = () => switchInstitution(idx);
-        scrollContainer.appendChild(chip);
-    });
+    const grid = document.getElementById('cardGrid');
+
+    async function loadData() {
+        grid.innerHTML = '<div class="status">正在读取 SEC EDGAR 最新 13F 数据...</div>';
+
+        try {
+            if (API_ENDPOINT.includes('YOUR_WORKERS_SUBDOMAIN')) {
+                throw new Error('请先把 API_ENDPOINT 改成你部署后的 Cloudflare Worker URL。');
+            }
+
+            const response = await fetch(`${API_ENDPOINT}/holdings`);
+            if (!response.ok) {
+                throw new Error(`SEC 数据接口返回 ${response.status}`);
+            }
+
+            const payload = await response.json();
+            data = payload.institutions || [];
+
+            if (!data.length) {
+                throw new Error('SEC 数据接口没有返回机构持仓。');
+            }
+
+            renderInstitutionSelector();
+            renderView();
+        } catch (error) {
+            grid.innerHTML = `<div class="status error">${error.message}</div>`;
+            document.getElementById('mgrName').innerText = '未连接';
+            document.getElementById('mgrStyle').innerText = 'SEC EDGAR';
+        }
+    }
+
+    function renderInstitutionSelector() {
+        scrollContainer.innerHTML = '';
+        data.forEach((inst, idx) => {
+            const chip = document.createElement('div');
+            chip.className = `inst-chip ${idx === 0 ? 'active' : ''}`;
+            chip.innerText = inst.name;
+            chip.onclick = () => switchInstitution(idx);
+            scrollContainer.appendChild(chip);
+        });
+    }
 
     function switchInstitution(idx) {
         currentIdx = idx;
@@ -259,19 +261,17 @@
 
     function renderView() {
         const inst = data[currentIdx];
+        if (!inst) return;
         
         // 更新元数据
         document.getElementById('mgrName').innerText = inst.mgr;
-        document.getElementById('mgrStyle').innerText = inst.style;
+        document.getElementById('mgrStyle').innerText = inst.style || '13F';
+        document.getElementById('filingDate').innerText = inst.reportDate || inst.filingDate || 'SEC EDGAR';
 
         // 渲染卡片
-        const grid = document.getElementById('cardGrid');
         grid.innerHTML = ''; // 清空
 
         inst.holdings.forEach(stock => {
-            const changeClass = stock.c > 0 ? 'up' : (stock.c < 0 ? 'down' : 'flat');
-            const changeText = stock.c > 0 ? `+${stock.c}%` : `${stock.c}%`;
-
             const card = document.createElement('div');
             card.className = 'stock-card';
             card.innerHTML = `
@@ -280,7 +280,7 @@
                         <div class="ticker">${stock.t}</div>
                         <div class="company-name">${stock.n}</div>
                     </div>
-                    <div class="change-badge ${changeClass}">${changeText}</div>
+                    <div class="change-badge flat">13F</div>
                 </div>
                 <div class="card-footer">
                     <span>市值 ${stock.v}</span>
@@ -292,7 +292,7 @@
     }
 
     // 初始化
-    renderView();
+    loadData();
 </script>
 </body>
 </html>
