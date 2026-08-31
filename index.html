@@ -195,6 +195,45 @@
         .data-badge.unavailable { color: var(--text-light); background: #f0f0f0; }
         .directory-source { color: var(--text-light); font-size: 11px; margin-top: 10px; }
         .directory-source a { color: inherit; }
+        .holding-button {
+            display: block;
+            margin-top: 8px;
+            border: 1px solid var(--border-color);
+            border-radius: 5px;
+            padding: 4px 8px;
+            color: var(--text-main);
+            background: white;
+            font: inherit;
+            font-size: 11px;
+            cursor: pointer;
+        }
+        .holding-button:hover { border-color: #bbb; background: #fafafa; }
+        .holding-button:disabled { color: var(--text-light); cursor: wait; }
+        .holdings-detail {
+            margin-top: 18px;
+            padding: 16px;
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            background: #fafafa;
+        }
+        .holdings-detail[hidden] { display: none; }
+        .holdings-detail-heading {
+            display: flex;
+            justify-content: space-between;
+            gap: 16px;
+            align-items: flex-start;
+            margin-bottom: 12px;
+        }
+        .holdings-detail-heading h3 { font-size: 14px; }
+        .holdings-detail-heading p { color: var(--text-light); font-size: 11px; margin-top: 3px; }
+        .detail-close { border: 0; color: var(--text-light); background: transparent; cursor: pointer; font: inherit; font-size: 12px; }
+        .holdings-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+        .holdings-table th,
+        .holdings-table td { padding: 8px 6px; border-bottom: 1px solid var(--border-color); text-align: left; }
+        .holdings-table th { color: var(--text-light); font-size: 11px; font-weight: 500; }
+        .holdings-table td:last-child,
+        .holdings-table th:last-child { text-align: right; }
+        .holdings-table tr:last-child td { border-bottom: 0; }
 
         @media (max-width: 639px) {
             .directory-heading { display: block; }
@@ -238,6 +277,17 @@
             </div>
         </div>
 
+        <section class="holdings-detail" id="holdingsDetail" hidden aria-live="polite">
+            <div class="holdings-detail-heading">
+                <div>
+                    <h3 id="holdingsTitle">机构持仓</h3>
+                    <p id="holdingsMeta"></p>
+                </div>
+                <button class="detail-close" id="holdingsClose" type="button">关闭</button>
+            </div>
+            <div id="holdingsDetailBody"></div>
+        </section>
+
         <!-- 全球资产管理机构 Top 100 -->
         <section class="directory-section" aria-labelledby="top100Title">
             <div class="directory-heading">
@@ -264,6 +314,11 @@
     const scrollContainer = document.getElementById('instScroll');
     const grid = document.getElementById('cardGrid');
     const top100List = document.getElementById('top100List');
+    const holdingsDetail = document.getElementById('holdingsDetail');
+    const holdingsTitle = document.getElementById('holdingsTitle');
+    const holdingsMeta = document.getElementById('holdingsMeta');
+    const holdingsDetailBody = document.getElementById('holdingsDetailBody');
+    document.getElementById('holdingsClose').onclick = () => { holdingsDetail.hidden = true; };
 
     async function loadData() {
         grid.innerHTML = '<div class="status">正在读取 SEC EDGAR 最新 13F 数据...</div>';
@@ -410,8 +465,14 @@
             status.appendChild(badge);
             const note = document.createElement('div');
             note.className = 'directory-name-en';
-            note.innerText = 'SEC 持仓待映射';
+            note.innerText = '点击查询 SEC 13F';
             status.appendChild(note);
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.className = 'holding-button';
+            button.innerText = '查看持仓比例';
+            button.onclick = () => loadManagerHoldings(manager, button);
+            status.appendChild(button);
             row.appendChild(status);
 
             tbody.appendChild(row);
@@ -431,6 +492,65 @@
             link.innerText = '查看来源';
             source.append(' ', link);
         }
+    }
+
+    async function loadManagerHoldings(manager, button) {
+        holdingsDetail.hidden = false;
+        holdingsTitle.innerText = `${manager.nameZh} / ${manager.nameEn}`;
+        holdingsMeta.innerText = '正在查询 SEC EDGAR 最新 13F 报告...';
+        holdingsDetailBody.innerHTML = '<div class="status">正在读取真实持仓数据...</div>';
+        button.disabled = true;
+        holdingsDetail.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+        try {
+            const response = await fetch(`${API_ENDPOINT}/manager-holdings?rank=${encodeURIComponent(manager.rank)}`);
+            const payload = await response.json();
+            if (!response.ok) {
+                throw new Error(payload.error || `SEC 持仓接口返回 ${response.status}`);
+            }
+
+            holdingsMeta.innerText = `报告期 ${payload.reportDate || '—'} · 提交日期 ${payload.filingDate || '—'} · CIK ${payload.cik}`;
+            renderHoldings(payload.holdings || []);
+        } catch (error) {
+            holdingsMeta.innerText = 'SEC EDGAR';
+            holdingsDetailBody.innerHTML = `<div class="status error">${error.message}</div>`;
+        } finally {
+            button.disabled = false;
+        }
+    }
+
+    function renderHoldings(holdings) {
+        holdingsDetailBody.innerHTML = '';
+        if (!holdings.length) {
+            holdingsDetailBody.innerHTML = '<div class="status">该申报没有可显示的持仓。</div>';
+            return;
+        }
+
+        const table = document.createElement('table');
+        table.className = 'holdings-table';
+        const head = document.createElement('thead');
+        const headRow = document.createElement('tr');
+        ['Ticker', '证券', '申报市值', '持股比例'].forEach(label => {
+            const cell = document.createElement('th');
+            cell.innerText = label;
+            headRow.appendChild(cell);
+        });
+        head.appendChild(headRow);
+        table.appendChild(head);
+
+        const body = document.createElement('tbody');
+        holdings.forEach(stock => {
+            const row = document.createElement('tr');
+            [stock.t || '—', stock.n || '—', stock.v || '—', stock.p || '0%'].forEach((value, index) => {
+                const cell = document.createElement('td');
+                cell.innerText = value;
+                if (index > 1) cell.style.textAlign = 'right';
+                row.appendChild(cell);
+            });
+            body.appendChild(row);
+        });
+        table.appendChild(body);
+        holdingsDetailBody.appendChild(table);
     }
 
     function formatDate(value) {

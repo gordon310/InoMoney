@@ -56,6 +56,10 @@ export default {
       return new Response(null, { headers: corsHeaders() });
     }
 
+    if (url.pathname === '/manager-holdings') {
+      return handleManagerHoldings(url, env, ctx);
+    }
+
     if (url.pathname !== '/holdings') {
       return jsonResponse({ error: 'Not found' }, 404);
     }
@@ -153,6 +157,110 @@ function findInfoTableXml(archive) {
   if (nonPrimaryXml) return nonPrimaryXml.name;
 
   throw new Error('No 13F information table XML found');
+}
+
+async function handleManagerHoldings(url, env, ctx) {
+  const rank = Number(url.searchParams.get('rank'));
+  if (!Number.isInteger(rank) || rank < 1 || rank > TOP100_MANAGERS.length) {
+    return jsonResponse({ error: 'rank must be an integer from 1 to 100' }, 400);
+  }
+
+  const cacheKey = new Request(url.origin + `/manager-holdings?rank=${rank}`);
+  const cached = await caches.default.match(cacheKey);
+  if (cached) return withCors(cached);
+
+  const manager = TOP100_MANAGERS[rank - 1];
+  try {
+    const secUserAgent = env.SEC_USER_AGENT || DEFAULT_SEC_USER_AGENT;
+    const candidates = await findSecCandidates(manager, secUserAgent);
+    let lastError = null;
+
+    for (const cik of candidates.slice(0, 3)) {
+      try {
+        const institution = await loadInstitution({
+          id: `top100-${manager.rank}`,
+          name: manager.nameEn,
+          mgr: manager.nameZh,
+          style: 'Asset Manager',
+          cik,
+        }, secUserAgent);
+        const response = jsonResponse({
+          source: 'SEC EDGAR',
+          discovery: 'SEC EDGAR search index',
+          manager,
+          cik,
+          filingDate: institution.filingDate,
+          reportDate: institution.reportDate,
+          accession: institution.accession,
+          holdings: institution.holdings,
+        }, 200, { 'Cache-Control': `public, max-age=${CACHE_TTL_SECONDS}` });
+        ctx.waitUntil(caches.default.put(cacheKey, response.clone()));
+        return response;
+      } catch (error) {
+        lastError = error;
+      }
+    }
+
+    const detail = lastError ? ` ${lastError.message}` : '';
+    return jsonResponse({
+      error: `未找到 ${manager.nameEn} 可核验的 SEC 13F 持仓申报。${detail}`,
+      manager,
+    }, 404);
+  } catch (error) {
+    return jsonResponse({ error: error.message, manager }, 502);
+  }
+}
+
+async function findSecCandidates(manager, secUserAgent) {
+  const queries = [manager.nameEn];
+  const firstName = normalizeName(manager.nameEn).split(' ').find((token) => token.length > 3);
+  if (firstName && firstName !== normalizeName(manager.nameEn)) queries.push(firstName);
+
+  const candidates = new Map();
+  for (const query of queries) {
+    const search = await secJson(
+      `https://efts.sec.gov/LATEST/search-index?q=${encodeURIComponent(query)}&forms=13F-HR&from=0&size=100`,
+      secUserAgent
+    );
+    const hits = search.hits && search.hits.hits;
+    if (!Array.isArray(hits)) continue;
+
+    for (const hit of hits) {
+      const source = hit._source || {};
+      const displayName = Array.isArray(source.display_names) ? source.display_names.join(' ') : '';
+      const score = nameMatchScore(manager.nameEn, displayName);
+      if (score < 0.25 || !Array.isArray(source.ciks)) continue;
+      for (const cik of source.ciks) {
+        const normalizedCik = String(cik).padStart(10, '0');
+        const current = candidates.get(normalizedCik);
+        const period = source.period_ending || '';
+        if (!current || score > current.score || (score === current.score && period > current.period)) {
+          candidates.set(normalizedCik, { score, period });
+        }
+      }
+    }
+  }
+
+  return Array.from(candidates.entries())
+    .sort((a, b) => b[1].score - a[1].score || b[1].period.localeCompare(a[1].period))
+    .map(([cik]) => cik);
+}
+
+function normalizeName(value) {
+  return value
+    .toLowerCase()
+    .replace(/&/g, ' and ')
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim();
+}
+
+function nameMatchScore(target, candidate) {
+  const ignored = new Set(['the', 'and', 'inc', 'incorporated', 'llc', 'lp', 'l', 'p', 'company', 'co', 'group', 'management', 'investment', 'investments', 'asset', 'advisors', 'advisor', 'corp', 'corporation', 'limited', 'ltd']);
+  const targetTokens = normalizeName(target).split(' ').filter((token) => token.length > 2 && !ignored.has(token));
+  const candidateTokens = new Set(normalizeName(candidate).split(' '));
+  if (!targetTokens.length) return 0;
+  const matches = targetTokens.filter((token) => candidateTokens.has(token)).length;
+  return matches / targetTokens.length;
 }
 
 function parseInfoTable(xml) {
