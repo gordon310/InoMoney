@@ -2,6 +2,7 @@ import { TOP100_MANAGERS, TOP100_META } from './top100.js';
 
 const DEFAULT_SEC_USER_AGENT = 'InoMoney/1.0';
 const CACHE_TTL_SECONDS = 3600;
+const NAME_STOP_WORDS = new Set(['the', 'and', 'inc', 'incorporated', 'llc', 'lp', 'l', 'p', 'company', 'co', 'group', 'management', 'investment', 'investments', 'asset', 'advisors', 'advisor', 'corp', 'corporation', 'limited', 'ltd']);
 
 const INSTITUTIONS = [
   {
@@ -165,7 +166,7 @@ async function handleManagerHoldings(url, env, ctx) {
     return jsonResponse({ error: 'rank must be an integer from 1 to 100' }, 400);
   }
 
-  const cacheKey = new Request(url.origin + `/manager-holdings?rank=${rank}`);
+  const cacheKey = new Request(url.origin + `/manager-holdings?rank=${rank}&v=top100-v2`);
   const cached = await caches.default.match(cacheKey);
   if (cached) return withCors(cached);
 
@@ -212,8 +213,10 @@ async function handleManagerHoldings(url, env, ctx) {
 }
 
 async function findSecCandidates(manager, secUserAgent) {
+  if (manager.secCik) return [manager.secCik];
+
   const queries = [manager.nameEn];
-  const firstName = normalizeName(manager.nameEn).split(' ').find((token) => token.length > 3);
+  const firstName = normalizeName(manager.nameEn).split(' ').find((token) => token.length > 3 && !NAME_STOP_WORDS.has(token));
   if (firstName && firstName !== normalizeName(manager.nameEn)) queries.push(firstName);
 
   const candidates = new Map();
@@ -255,8 +258,7 @@ function normalizeName(value) {
 }
 
 function nameMatchScore(target, candidate) {
-  const ignored = new Set(['the', 'and', 'inc', 'incorporated', 'llc', 'lp', 'l', 'p', 'company', 'co', 'group', 'management', 'investment', 'investments', 'asset', 'advisors', 'advisor', 'corp', 'corporation', 'limited', 'ltd']);
-  const targetTokens = normalizeName(target).split(' ').filter((token) => token.length > 2 && !ignored.has(token));
+  const targetTokens = normalizeName(target).split(' ').filter((token) => token.length > 2 && !NAME_STOP_WORDS.has(token));
   const candidateTokens = new Set(normalizeName(candidate).split(' '));
   if (!targetTokens.length) return 0;
   const matches = targetTokens.filter((token) => candidateTokens.has(token)).length;

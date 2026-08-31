@@ -14,6 +14,7 @@ export const TOP100_MANAGERS = Object.freeze([
   {
     "rank": 1,
     "id": "598cdaa50124e9fd2d05aa5d",
+    "secCik": "0002012383",
     "nameZh": "贝莱德",
     "nameEn": "BlackRock",
     "country": "United States",
@@ -25,6 +26,7 @@ export const TOP100_MANAGERS = Object.freeze([
   {
     "rank": 2,
     "id": "598cdaa60124e9fd2d05c27e",
+    "secCik": "0000102909",
     "nameZh": "先锋领航",
     "nameEn": "Vanguard",
     "country": "United States",
@@ -36,6 +38,7 @@ export const TOP100_MANAGERS = Object.freeze([
   {
     "rank": 3,
     "id": "598cdaa50124e9fd2d05b0ac",
+    "secCik": "0000315066",
     "nameZh": "富达管理与研究",
     "nameEn": "Fidelity Management & Research",
     "country": "United States",
@@ -47,6 +50,7 @@ export const TOP100_MANAGERS = Object.freeze([
   {
     "rank": 4,
     "id": "598cdaa60124e9fd2d05c087",
+    "secCik": "0001422848",
     "nameZh": "资本集团",
     "nameEn": "The Capital Group Cos. Inc.",
     "country": "United States",
@@ -58,6 +62,7 @@ export const TOP100_MANAGERS = Object.freeze([
   {
     "rank": 5,
     "id": "5ab34d3f1f81d0320f942f69",
+    "secCik": "0001330387",
     "nameZh": "东方汇理",
     "nameEn": "Amundi",
     "country": "France",
@@ -69,6 +74,7 @@ export const TOP100_MANAGERS = Object.freeze([
   {
     "rank": 6,
     "id": "598cdaa60124e9fd2d05ba7d",
+    "secCik": "0001163368",
     "nameZh": "太平洋投资管理公司（PIMCO）",
     "nameEn": "Pacific Investment Management Company LLC",
     "country": "United States",
@@ -80,6 +86,7 @@ export const TOP100_MANAGERS = Object.freeze([
   {
     "rank": 7,
     "id": "5a762a259af7a00285952267",
+    "secCik": "0000914208",
     "nameZh": "景顺",
     "nameEn": "Invesco",
     "country": "United States",
@@ -113,6 +120,7 @@ export const TOP100_MANAGERS = Object.freeze([
   {
     "rank": 10,
     "id": "598cdaa50124e9fd2d05b21c",
+    "secCik": "0001214717",
     "nameZh": "Geode资本管理",
     "nameEn": "Geode Capital Management",
     "country": "United States",
@@ -135,6 +143,7 @@ export const TOP100_MANAGERS = Object.freeze([
   {
     "rank": 12,
     "id": "598cdaa60124e9fd2d05c003",
+    "secCik": "0000080255",
     "nameZh": "普信集团（T. Rowe Price）",
     "nameEn": "T. Rowe Price Group Inc.",
     "country": "United States",
@@ -179,6 +188,7 @@ export const TOP100_MANAGERS = Object.freeze([
   {
     "rank": 16,
     "id": "598cdaa60124e9fd2d05b9c5",
+    "secCik": "0001871926",
     "nameZh": "Nuveen投资",
     "nameEn": "Nuveen Investments",
     "country": "United States",
@@ -190,6 +200,7 @@ export const TOP100_MANAGERS = Object.freeze([
   {
     "rank": 17,
     "id": "598cdaa60124e9fd2d05c313",
+    "secCik": "0000902219",
     "nameZh": "惠灵顿管理",
     "nameEn": "Wellington Management Company",
     "country": "United States",
